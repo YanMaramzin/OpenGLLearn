@@ -1,4 +1,5 @@
 #define CLEW_STATIC
+#include <cmath>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <logger.h>
@@ -17,16 +18,20 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mode
 
 const auto vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
+        "out vec4 vertexColor;\n"
         "void main()\n"
         "{\n"
         "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+        "   vertexColor = vec4(0.5f, 0.0f, 0.0f, 1.0f);\n"
         "}\0";
 
 const auto fragmentShaderSource = "#version 330 core\n"
+            "in vec4 vertexColor;\n"
             "out vec4 color;\n"
+            "uniform vec4 ourColor;\n"
             "void main()\n"
             "{\n"
-            "   color = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+            "   color = ourColor;\n"
             "}\n\0";
 
 int main()
@@ -140,6 +145,9 @@ int main()
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+    GLint nrAttributes;
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
+    Logger::info("Maximum nr of vertex attributes supported: " + std::to_string(nrAttributes));
 
     while (!glfwWindowShouldClose(window))
     {
@@ -148,7 +156,11 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        float timeValue = glfwGetTime();
+        float greenValue = (std::sin(timeValue) / 2) + 0.5f;
+        uint vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
         glUseProgram(shaderProgram);
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
         glBindVertexArray(VAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);

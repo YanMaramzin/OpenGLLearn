@@ -19,7 +19,8 @@ target_link_libraries(${PROJECT_NAME} glfw)
 target_link_libraries(${PROJECT_NAME} logger)
 target_include_directories(${PROJECT_NAME} PUBLIC
         "${PROJECT_SOURCE_DIR}"
-                          "${PROJECT_SOURCE_DIR}/src/logger"
+        "${PROJECT_SOURCE_DIR}/src/logger"
+        "${PROJECT_SOURCE_DIR}/src/shader"
 )
 include_directories(${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
