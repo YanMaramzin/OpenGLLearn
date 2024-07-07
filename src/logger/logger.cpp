@@ -23,9 +23,5 @@ void Logger::error(const std::string &error)
     std::cout << "\033[1;31mERROR: " + error + "\033[0m\n";
 }
 
-// void Logger::error(const char *error)
-// {
-//     std::cout << error;
-// }
 
 

@@ -1,9 +1,14 @@
 #define CLEW_STATIC
+#define STB_IMAGE_IMPLEMENTATION
 #include <cmath>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <logger.h>
 #include <iostream>
+#include <shader.h>
+#include <share/stb/stb_image.h>
+
+float mixValue = 0.2f;
 
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mode)
 {
@@ -14,25 +19,17 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mode
     if (key == GLFW_KEY_B && action == GLFW_PRESS)
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+    if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
+        mixValue += 0.1f;
+        if (mixValue >= 1.0f)
+            mixValue = 1.0f;
+    }
+    if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
+        mixValue -= 0.1f;
+        if (mixValue <= 0.0f)
+            mixValue = 0.0f;
+    }
 }
-
-const auto vertexShaderSource = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "out vec4 vertexColor;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "   vertexColor = vec4(0.5f, 0.0f, 0.0f, 1.0f);\n"
-        "}\0";
-
-const auto fragmentShaderSource = "#version 330 core\n"
-            "in vec4 vertexColor;\n"
-            "out vec4 color;\n"
-            "uniform vec4 ourColor;\n"
-            "void main()\n"
-            "{\n"
-            "   color = ourColor;\n"
-            "}\n\0";
 
 int main()
 {
@@ -63,72 +60,50 @@ int main()
         return -1;
     }
 
-    int width;
-    int height;
-    glfwGetFramebufferSize(window, &width, &height);
+    // int width;
+    // int height;
+    // glfwGetFramebufferSize(window, &width, &height);
 
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, 800, 600);
 
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
+    const Shader shader("../src/shaders/shader.vert", "../src/shaders/shader.frag");
 
-    GLint success;
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-    if (!success) {
-        GLchar infoLog[512];
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        Logger::error(infoLog);
-    }
-
-    const GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        GLchar infoLog[512];
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        Logger::error(infoLog);
-    }
-
-    const GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        GLchar infoLog[512];
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-        Logger::error("Failed create shaderProgram: " + std::string(infoLog));
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    // constexpr GLfloat vertices[] = {
-    //      -0.5f, -0.5f, 0.0f,
-    //      0.5f, -0.5f, 0.0f,
-    //      0.0f,  0.5f, 0.0f
+    // float vertices[] = {
+    //     0.5f, 0.5f, 0.0f,
+    //     0.5f, -0.5f, 0.0f,
+    //     -0.5f, -0.5f, 0.0f,
+    //     -0.5f, 0.5f, 0.0f
     // };
 
-    float vertices[] = {
-        0.5f, 0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        -0.5f, -0.5f, 0.0f,
-        -0.5f, 0.5f, 0.0f
-    };
+    // float vertices[] = {
+    //     -0.5f, -0.0f, 0.0f,
+    //     0.5f, -0.5f, 0.0f,
+    //     0.0f, 0.5f, 0.0f
+    // };
 
-    GLuint indices[] = {
+    constexpr float vertices[] = {
+        // positions          // colors           // texture coords
+        0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   2.0f, 2.0f, // top right
+        0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   2.0f, 0.0f, // bottom right
+       -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+       -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 2.0f  // top left
+   };
+
+    const uint indices[] = {
         0, 1, 3,
         1, 2, 3
     };
 
+    float texCoords[] = {
+        0.0f, 0.0f, // Нижний левый угол
+        1.0f, 0.0f, // Нижний правый угол
+        0.5f, 1.0f // Верхняя центральная сторона
+    };
 
-    GLuint VAO;
-    GLuint VBO;
-    GLuint EBO;
+    uint VAO;
+    uint VBO;
+    uint EBO;
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -140,29 +115,86 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), static_cast<GLvoid *>(nullptr));
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), static_cast<GLvoid *>(nullptr));
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // texture coord attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-    GLint nrAttributes;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
-    Logger::info("Maximum nr of vertex attributes supported: " + std::to_string(nrAttributes));
 
-    while (!glfwWindowShouldClose(window))
-    {
+    uint texture1;
+    glGenTextures(1, &texture1);
+    glBindTexture(GL_TEXTURE_2D, texture1);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    int widthT, heightT, nrChannels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char *image = stbi_load("/home/mist/devel/openglproject/src/texture/wall.jpg", &widthT, &heightT, &nrChannels, 0);
+    if (image) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widthT, heightT, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        Logger::error("Failed to load texture");
+    }
+    stbi_image_free(image);
+
+    uint texture2;
+    glGenTextures(1, &texture2);
+    glBindTexture(GL_TEXTURE_2D, texture2);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int widthT1, heightT1, nrChannels1;
+    unsigned char *image1 = stbi_load("/home/mist/devel/openglproject/src/texture/awesomeface.png", &widthT1, &heightT1, &nrChannels1, 0);
+    if (image1) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, widthT1, heightT1, 0, GL_RGBA, GL_UNSIGNED_BYTE, image1);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        Logger::error("Failed to load texture");
+    }
+    stbi_image_free(image1);
+
+    shader.use(); // don't forget to activate/use the shader before setting uniforms!
+    // either set it manually like so:
+    // glUniform1i(glGetUniformLocation(shader.shaderProgram(), "texture1"), 0);
+    shader.setInt("texture1", 0);
+    shader.setInt("texture2", 1);
+    // GLint nrAttributes;
+    // glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
+    // Logger::info("Maximum nr of vertex attributes supported: " + std::to_string(nrAttributes));
+
+    while (!glfwWindowShouldClose(window)) {
         glfwSetKeyCallback(window, keyCallback);
+
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        float timeValue = glfwGetTime();
-        float greenValue = (std::sin(timeValue) / 2) + 0.5f;
-        uint vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
-        glUseProgram(shaderProgram);
-        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
+
+        shader.use();
         glBindVertexArray(VAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
+        shader.setFloat("coeffMix", mixValue);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         glBindVertexArray(0);
 
@@ -173,8 +205,6 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
 
     glfwTerminate();
     return 0;
